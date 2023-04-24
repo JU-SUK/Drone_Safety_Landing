@@ -9,8 +9,11 @@ from math import pow, atan2, sqrt, pi, degrees
 from std_msgs.msg import Float32MultiArray
 from tf.transformations import euler_from_quaternion
 from tf.transformations import quaternion_from_euler
+# Change the mode of drone
 from mavros_msgs.srv import SetMode
+# Carry out arm/disarm of drone
 from mavros_msgs.srv import CommandBool
+# Take off or land a drone
 from mavros_msgs.srv import CommandTOL
 
 def euclidean_distance(x_d, y_d, z_d):
@@ -35,18 +38,18 @@ class PID:
 
         # Default Error Initialization
         self.err_previous = 0.001
-        self.err_acc = 0
+        self.err_accmulation = 0
 
-    def comput(self, err):
+    def compute(self, err):
 
         # compute dervivative
         err_deriv = (err - self.err_previous) / self.dt
 
         # update integration
-        self.err_acc = self.err_acc + self.dt * (err + self.err_previous)/2
+        self.err_accmulation = self.err_accmulation + self.dt * (err + self.err_previous)/2
 
         # compute pid equation
-        pid = self.kp * err + self.kd * err_deriv + self.ki * err_acc
+        pid = self.kp * err + self.kd * err_deriv + self.ki * err_accmulation
 
         # update error
         self.err_previous = err
@@ -62,17 +65,19 @@ class Controller:
         self.bebop_subscriber = rospy.Subscriber("/relative_distance", Float32MultiArray, self.call_back)
         self.position_subscriber = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.pos_call_back)
 
-        # robot current state
+        # drone current state
         self.state = State()
-
+        
+        # PoseStamped class that stores the current location of the drone
         self.local_position = PoseStamped()
 
         # controller frequency in Hz
         self.hz = 50.0
+        # Limit the rate in which ROS nodes run
         self.rate = rospy.Rate(self.hz)
         self.dt = (1.0 / self.hz)
 
-        # define pids
+        # PID controller class 
         self.pid_rho = PID(kp=0.2, dt = self.dt)
 
 
@@ -81,7 +86,8 @@ class Controller:
         self.state.x = -msg.data[1]
         self.state.y = -msg.data[0]
         self.state.z = -msg.data[2]
-
+    
+    # Store location information on the drone's local coordinate system
     def pos_call_back(self, msg):
         self.local_position.pose.position.x = msg.pose.position.x
         self.local_position.pose.position.y = msg.pose.position.y
@@ -96,12 +102,17 @@ class Controller:
         for i in range(200):
             self.position_publisher.publish(pos_msg)
             self.rate.sleep()
+     
     def move_to_goal(self):
         # variable initialization
         vel_msg = Twist()
+        
+        # Allowance to reach target position
         tolerance_position = 0.01
-
+        
+        # Calculate the distance between the current position and the target position
         rho = euclidean_distance(self.state.x, self.state.y, self.state.z)
+        
         while (rho >= tolerance_position or rho ==0) and self.state.z < -1:
             rospy.loginfo("Distance form goal:" + str(rho))
 

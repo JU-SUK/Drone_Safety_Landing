@@ -12,7 +12,7 @@ import cv2.aruco as aruco
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32MultiArray
-from cv_brdige import CvBridge, CvBridgeError
+from cv_bridge import CvBridge, CvBridgeError
 
 class image_converter:
 
@@ -21,20 +21,22 @@ class image_converter:
         self.distance_pub = rospy.Publisher("/relative_distance", Float32MultiArray, queue_size=1)
 
         self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber("/stereo_camera/image_raw", Image, self.callback)
+        # 나중에 /stereo/left/image_raw변경하자!!!
+        self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.callback)
         self.lostnumber = 0
 
     def callback(self, data):
         try:
             # transform ROS image message into opencv image
-            cv_image = self.bridge.image_to_cv2(data, "bgr8")
+            cv_image = self.bridge.imgmsg_to_cv2(data, desired_encoding="bgr8")
         except CvBridgeError as e:
             print(e)
 
         global ret, mtx, dist, rvecs, tvecs
 
         # aruco basic setting
-        aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
+        aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_50)
+
         # hese parameters include things like marker detection thresholds, corner refinement methods, and adaptive thresholding parameters
         # we should change these parameters so that can achieve the desired level of marker detection accuracy and robustness
         parameters = aruco.DetectorParameters_create()
@@ -44,6 +46,7 @@ class image_converter:
 
         # detect marker configuration
         corners, ids, rejectedImgPoints = aruco.detectMarkers(cv_image_gray, aruco_dict, parameters=parameters)
+
         if np.all(ids != None):
             self.lostnumber = 0
             id = ids[0][0]
@@ -53,8 +56,11 @@ class image_converter:
                     id = ids[i][0]
                     lock_number = i
             marker_size = 0
+
             if id==1:
                 marker_size = 0.139
+            elif id==0:
+                marker_size = 0.02
             elif id==2:
                 marker_size = 0.071
             elif id==3:
@@ -64,7 +70,7 @@ class image_converter:
             # pose estimation
             # 0.19: markerLength, mtx: cameraMatrix, dist: distortion coefficients
             rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners[lock_number], marker_size, mtx, dist)
-
+            print(rvec)
             # read corners information
             top_left_X = corners[0][0][0][0]
             top_left_Y = corners[0][0][0][1]
@@ -90,7 +96,7 @@ class image_converter:
             midpoint_Y = (top_left_Y + bottom_right_Y) / 2
 
             # draw axis and detect marker
-            aruco.drawAxis(cv_image, mtx, dist, rvec[0], tvec[0], 0.1)
+            #aruco.drawAxis(cv_image, mtx, dist, rvec[0], tvec[0], 0.01)
             aruco.drawDetectedMarkers(cv_image, corners)
 
             # draw ID text on top of image
@@ -140,3 +146,4 @@ def main(args):
 
 if __name__ == "__main__":
     main(sys.argv)
+

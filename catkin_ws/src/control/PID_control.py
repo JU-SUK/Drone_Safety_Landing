@@ -49,11 +49,10 @@ class PID:
         self.err_accmulation = self.err_accmulation + self.dt * (err + self.err_previous)/2
 
         # compute pid equation
-        pid = self.kp * err + self.kd * err_deriv + self.ki * err_accmulation
+        pid = self.kp * err + self.kd * err_deriv + self.ki * self.err_accmulation
 
         # update error
         self.err_previous = err
-
         return pid
 
 class Controller:
@@ -78,7 +77,7 @@ class Controller:
         self.dt = (1.0 / self.hz)
 
         # PID controller class 
-        self.pid_rho = PID(kp=0.2, dt = self.dt)
+        self.pid_rho = PID(kp=100, dt = self.dt)
 
 
     # tranformation
@@ -113,7 +112,7 @@ class Controller:
         # Calculate the distance between the current position and the target position
         rho = euclidean_distance(self.state.x, self.state.y, self.state.z)
         
-        while (rho >= tolerance_position or rho ==0) and self.state.z < -1:
+        while (rho >= tolerance_position or rho ==0): # and self.state.z < -1
             rospy.loginfo("Distance form goal:" + str(rho))
 
             rho = euclidean_distance(self.state.x, self.state.y, self.state.z)
@@ -124,7 +123,7 @@ class Controller:
             # compute PID
             vx = self.pid_rho.compute(err_x)
             vy = self.pid_rho.compute(err_y)
-            vz = self.pid_rho.compute(err_z) * 0.25
+            vz = self.pid_rho.compute(err_z) #*0.25
 
             # fill message
             vel_msg.linear.x = vx
@@ -151,7 +150,7 @@ class Controller:
             print("landing begin")
             vel_msg.linear.x = 0.0
             vel_msg.linear.y = 0.0
-            vel_msg.linear.z = -2.0
+            vel_msg.linear.z = -1.0
 
             for i in range(1000):
                 self.velocity_publisher.publish(vel_msg)
@@ -168,7 +167,7 @@ class Controller:
         rospy.wait_for_service('/mavros/cmd/land')
         try:
             land_cl = rospy.ServiceProxy('/mavros/cmd/land', CommandTOL)
-            response = land_cl(altitude=, latitude=0, longitude=0, min_pitch=0, yaw=0)
+            response = land_cl(altitude=0, latitude=0, longitude=0, min_pitch=0, yaw=0)
             rospy.loginfo(response)
         except rospy.ServiceException as e:
             print("Landing failed: %s" %e)
@@ -192,12 +191,12 @@ if __name__ == "__main__":
     try:
         x = Controller()
 
-        x.takeoff()
+        # x.takeoff()
 
         x.move_to_goal()
 
         rospy.spin()
 
-    except rospy.ROSInterrupException:
+    except rospy.ROSInterruptException:
         pass
 

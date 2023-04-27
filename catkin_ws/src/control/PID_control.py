@@ -80,7 +80,7 @@ class Controller:
         self.dt = (1.0 / self.hz)
 
         # PID controller class 
-        self.pid_rho = PID(kp=10, dt = self.dt)
+        self.pid_rho = PID(kp=1, dt = self.dt)
 
 
     # function that handles messages received by the subscriber
@@ -116,7 +116,7 @@ class Controller:
         # Calculate the distance between the current position and the target position
         rho = euclidean_distance(self.state.x, self.state.y, self.state.z)
         
-        while (rho >= tolerance_position or rho ==0) and self.state.z<-1: # and self.state.z < -1
+        while (rho >= tolerance_position or rho ==0): # and self.state.z < -1
             rospy.loginfo("Distance form goal:" + str(rho))
 
             rho = euclidean_distance(self.state.x, self.state.y, self.state.z)
@@ -127,7 +127,7 @@ class Controller:
             # compute PID
             vx = self.pid_rho.compute(err_x)
             vy = self.pid_rho.compute(err_y)
-            vz = self.pid_rho.compute(err_z) #*0.25
+            vz = self.pid_rho.compute(err_z) *0.25
 
             # fill message
             vel_msg.linear.x = vx
@@ -193,9 +193,12 @@ class Controller:
         return
 if __name__ == "__main__":
     try:
+        rospy.wait_for_service("/mavros/set_mode")
+        set_mode_client = rospy.ServiceProxy("mavros/set_mode", SetMode)
+
         x = Controller()
 
-        # x.takeoff()
+        #x.takeoff()
 
         x.move_to_goal()
 

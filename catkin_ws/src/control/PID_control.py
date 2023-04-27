@@ -59,9 +59,12 @@ class Controller:
     def __init__(self):
         # initialize the ros node and relevant publisher/subscriber
         rospy.init_node("PID_node")
+        # Setpoint velocity of MAV. MAV can move at the desired speed
         self.velocity_publisher = rospy.Publisher("/mavros/setpoint_velocity/cmd_vel_unstamped", Twist, queue_size=1)
+        # Target position of MAV in local coordinate frame
         self.position_publisher = rospy.Publisher("/mavros/setpoint_position//local", PoseStamped, queue_size=1)
         self.bebop_subscriber = rospy.Subscriber("/relative_distance", Float32MultiArray, self.call_back)
+        # Receiving pose information of MAV in local coordinate frame
         self.position_subscriber = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.pos_call_back)
 
         # drone current state
@@ -77,10 +80,11 @@ class Controller:
         self.dt = (1.0 / self.hz)
 
         # PID controller class 
-        self.pid_rho = PID(kp=100, dt = self.dt)
+        self.pid_rho = PID(kp=10, dt = self.dt)
 
 
-    # tranformation
+    # function that handles messages received by the subscriber
+    # Relative position to target point
     def call_back(self, msg):
         self.state.x = -msg.data[1]
         self.state.y = -msg.data[0]
@@ -112,7 +116,7 @@ class Controller:
         # Calculate the distance between the current position and the target position
         rho = euclidean_distance(self.state.x, self.state.y, self.state.z)
         
-        while (rho >= tolerance_position or rho ==0): # and self.state.z < -1
+        while (rho >= tolerance_position or rho ==0) and self.state.z<-1: # and self.state.z < -1
             rospy.loginfo("Distance form goal:" + str(rho))
 
             rho = euclidean_distance(self.state.x, self.state.y, self.state.z)

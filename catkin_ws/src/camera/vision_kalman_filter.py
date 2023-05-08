@@ -26,8 +26,8 @@ class image_converter:
         self.image_sub = rospy.Subscriber("/stereo/left/image_raw", Image, self.callback)
         self.lostnumber = 0
         # Create KalmanFilter object as KF
-        # KalmanFilter(dt, u_x, u_y, u_z, std_acc, x_std_meas, y_std_meas)
-        self.KF = KalmanFilter(0.1, 1, 1, 1, 1, 0.1, 0.1, 0.1)
+        # KalmanFilter(dt, u_x, u_y, u_z, std_acc, x_std_meas, y_std_meas, z_std_meas)
+        self.KF = KalmanFilter(0.1, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01)
 
     def callback(self, data):
         try:
@@ -90,28 +90,28 @@ class image_converter:
             bottom_right_Y = corners[0][0][3][1]
 
             # Predict
-            predict = self.KF.predict()
-            x = predict[0][0][0]
-            y = predict[0][0][1]
-            z = predict[0][0][2]
-            print(predict)
-            print(x)
-            cv2.rectangle(cv_image, (int(x - 15), int(y - 15)), (int(x + 15), int(y + 15)), (255, 0, 0), 2)
-            cv2.putText(cv_image, "Predicted Position", (int(x+15), int(y)), 0, 0.5, (255,0,0),2)
+            (x, y, z) = self.KF.predict()
+            # cv2.rectangle(cv_image, (int(x - 15), int(y - 15)), (int(x + 15), int(y + 15)), (255, 0, 0), 2)
+            # cv2.putText(cv_image, "Predicted Position", (int(x+15), int(y)), 0, 0.5, (255,0,0),2)
 
             # get pose information
             cor_x = tvec[0][0][0]
             cor_y = tvec[0][0][1]
             cor_z = tvec[0][0][2]
+            cor_xyz = np.array([[cor_x], [cor_y], [cor_z]])
+            print(cor_xyz)
 
-            print("x=", cor_x)
-            print("y=", cor_y)
-            print("z=", cor_z)
+            print("Before x=", cor_x)
+            print("Before y=", cor_y)
+            print("Before z=", cor_z)
 
             # Update
-            (x1, y1, z1) = self.KF.update(tvec[0][0])
-            cv2.rectangle(cv_image, (int(x1-15), int(y1-15)), (int(x1+15), int(y1+15)), (0, 0, 255), 2)
-            cv2.putText(cv_image, "Estimated Position", (int(x1+15), int(y1)), 0, 0.5, (0,0,255),2)
+            (x1, y1, z1) = self.KF.update(cor_xyz)
+            # cv2.rectangle(cv_image, (int(x1-15), int(y1-15)), (int(x1+15), int(y1+15)), (0, 0, 255), 2)
+            # cv2.putText(cv_image, "Estimated Position", (int(x1+15), int(y1)), 0, 0.5, (0,0,255),2)
+            print("After x=", x1)
+            print("After y=", y1)
+            print("After z=", z1)
 
         
 

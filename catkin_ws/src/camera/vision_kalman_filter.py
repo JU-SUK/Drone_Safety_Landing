@@ -27,7 +27,7 @@ class image_converter:
         self.lostnumber = 0
         # Create KalmanFilter object as KF
         # KalmanFilter(dt, u_x, u_y, u_z, std_acc, x_std_meas, y_std_meas, z_std_meas)
-        self.KF = KalmanFilter(0.1, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01)
+        self.KF = KalmanFilter(0.1, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001)
 
     def callback(self, data):
         try:
